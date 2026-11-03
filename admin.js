@@ -429,7 +429,11 @@ function renderVolunteers(vols) {
   const tbl = $('tbl-vols');
   if (!vols.length) { emptyRow(tbl, 'No volunteers yet.'); return; }
   const msg = $('vol-list-msg');
-  const rows = vols.map((v) => {
+  // Ranked: most calls today first (ties: active first, then name).
+  const ranked = vols.slice().sort((a, b) =>
+    (Number(b.calls_today) || 0) - (Number(a.calls_today) || 0) || (b.active === a.active ? 0 : b.active ? 1 : -1) ||
+    String(a.name).localeCompare(String(b.name)));
+  const rows = ranked.map((v, i) => {
     const sel = h('select', { 'aria-label': 'Pool for ' + v.name },
       h('option', { value: 'main', text: 'main' }), h('option', { value: 'vbm', text: 'vbm' }));
     sel.value = v.pool;
@@ -454,11 +458,11 @@ function renderVolunteers(vols) {
     });
     return {
       cls: v.active ? null : 'revoked',
-      cells: [v.name, sel, v.active ? 'Active' : 'Revoked', v.last_seen_at ? etDateTime(v.last_seen_at) : 'never',
+      cells: [String(i + 1), v.name, sel, v.active ? 'Active' : 'Revoked', v.last_seen_at ? etDateTime(v.last_seen_at) : 'never',
         String(v.calls_today ?? 0), v.has_claim ? 'yes' : 'no', toggle],
     };
   });
-  buildTable(tbl, ['Name', 'Pool', 'Status', 'Last seen', 'Calls today', 'Has claim', ''], rows, [4]);
+  buildTable(tbl, ['#', 'Name', 'Pool', 'Status', 'Last seen', 'Calls today', 'Has claim', ''], rows, [0, 5]);
 }
 
 // ---------- 5. Config ----------
