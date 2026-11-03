@@ -164,6 +164,7 @@ const OUTCOME_LABELS = {
   moved: 'Moved', deceased: 'Deceased', language_spanish: 'Language: Spanish', language_other: 'Language: Other',
   answered: 'Answered',
   moved_household: 'Moved (no one here)',
+  talked_not_voting: 'Talked: not voting',
 };
 const OUTCOME_ORDER = Object.keys(OUTCOME_LABELS);
 

@@ -14,7 +14,7 @@
   var FINAL_HH = { wrong_number: 1, disconnected: 1, do_not_call: 1, moved_household: 1 };
   var VOTER_OUTCOMES = [
     ['talked_will_vote', 'Talked: will vote'], ['talked_already_voted', 'Talked: already voted'],
-    ['talked_refused', 'Talked: refused'], ['call_back', 'Not available, call back'],
+    ['talked_refused', 'Talked: refused'], ['talked_not_voting', 'Talked: not voting'], ['call_back', 'Not available, call back'],
     ['moved', 'Moved'], ['deceased', 'Deceased'],
     ['language_spanish', 'Language: Spanish'], ['language_other', 'Language: Other']
   ];
