@@ -32,7 +32,7 @@
     token: null, view: 'loading', busy: false, notice: '', msg: '', retry: null,
     claim: null, voters: [], resultId: null, dialed: false, dialLink: false,
     reserveFail: '', skipOpen: false, confirming: null, choices: {}, note: '',
-    submitError: '', lostNote: false, nextAt: null, awaitingReturn: false
+    submitError: '', lostNote: false, nextAt: null
   };
   var me = null;           // vol_me result
   var queue = [];          // pending results (no names / phones)
@@ -40,7 +40,7 @@
   var unauthorized = false;
   var flushing = null, retryTimer = null, backoff = 2000;
   var hbTimer = null, hbBusy = false, claiming = false;
-  var saveBtnEl = null;
+  var saveBtnEl = null, helperEl = null;
   var toastTimer = null;
 
   /* ---------- helpers ---------- */
@@ -111,11 +111,11 @@
     var m = /^(\d)\s*\/\s*3$/.exec(String(t || ''));
     return m ? 'Voted ' + m[1] + ' of last 3' : '';
   }
-  function toast(text) {
+  function toast(text, ms) {
     var el = $('toast');
     el.textContent = text; el.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.hidden = true; }, 2200);
+    toastTimer = setTimeout(function () { el.hidden = true; }, ms || 2200);
   }
 
   /* ---------- RPC ---------- */
@@ -179,7 +179,7 @@
       } else {
         outcomes[item.result_id] = { status: 'error', message: d.message || 'Could not save this result.' };
         queue.shift(); saveQueue();
-        toast('A result was not saved: ' + (d.message || 'server refused it') + ' Tell your lead.');
+        toast('A result was not saved: ' + (d.message || 'server refused it') + ' Tell your lead.', 8000);
       }
     }
     if (unauthorized) {
@@ -209,7 +209,7 @@
     state.claim = null; state.voters = []; state.dialed = false; state.dialLink = false;
     state.reserveFail = ''; state.skipOpen = false; state.confirming = null;
     state.choices = {}; state.note = ''; state.submitError = ''; state.lostNote = false;
-    state.awaitingReturn = false; saveBtnEl = null;
+    saveBtnEl = null; helperEl = null;
     if (state.view === 'household') state.view = 'home';
     lsDel(K_HOLD);
   }
@@ -259,7 +259,7 @@
   function render() {
     renderHeader(); renderBadge();
     var main = $('main'); clear(main);
-    saveBtnEl = null;
+    saveBtnEl = null; helperEl = null;
     switch (state.view) {
       case 'loading':
         main.appendChild(h('p', { class: 'muted center', text: 'Loading…' })); break;
@@ -271,13 +271,17 @@
         msgView(main, 'This link is no longer active', 'Ask your lead for a new link.'); break;
       case 'offline':
         msgView(main, 'No connection', state.msg || 'Could not reach the server. Check your signal.', [
-          h('button', { class: 'btn btn-big', type: 'button', text: 'Try again', disabled: state.busy, onclick: function () { (state.retry || boot)(); } })
+          h('button', { class: 'btn btn-big', type: 'button', text: 'Try again', onclick: function () { (state.retry || boot)(); } })
+        ]); break;
+      case 'wait':
+        msgView(main, 'Please wait', state.msg || 'Try again in a moment.', [
+          h('button', { class: 'btn btn-big', type: 'button', text: 'Check again', onclick: function () { (state.retry || boot)(); } })
         ]); break;
       case 'closed':
         msgView(main, 'Calling is paused', 'Wait for your lead to say calling is open.', [getNextBtn('Check again')]); break;
       case 'empty':
         msgView(main, 'No one left to call right now',
-          state.nextAt ? 'Next retry at ' + (fmtTimeET(state.nextAt) || 'soon') + ' ET.' : '',
+          state.nextAt ? 'Next retry at ' + (fmtTimeET(state.nextAt) || 'soon') + ' ET.' : 'Try again in a few minutes.',
           [getNextBtn('Check again')]); break;
       case 'waiting':
         msgView(main, 'Result saved on this phone',
@@ -286,7 +290,11 @@
       case 'home':
         if (state.notice) main.appendChild(h('div', { class: 'notice', role: 'alert', text: state.notice }));
         main.appendChild(h('div', { class: 'card msg' }, [
-          h('p', { class: 'muted', text: 'Ready when you are.' }),
+          h('div', { class: 'howto' }, [
+            h('p', { text: '1) Tap Call.' }),
+            h('p', { text: '2) Read the script.' }),
+            h('p', { text: '3) Come back here and tap what happened.' })
+          ]),
           getNextBtn('Get next')
         ])); break;
       case 'household':
@@ -303,6 +311,16 @@
     if (c.attempts > 0) typ += (typ ? ' · ' : '') + 'Retry (attempt ' + (c.attempts + 1) + ')';
     card.appendChild(h('div', { class: 'phone-type', text: typ || ' ' }));
 
+    if (state.voters.some(function (v) { return v.vbm === 'Y'; })) {
+      card.appendChild(h('div', { class: 'vbm', role: 'note' }, [
+        h('strong', { text: 'Mail ballot not returned' }),
+        document.createTextNode(String(content().vbm_instructions || ''))
+      ]));
+    }
+    if (!state.voters.length) {
+      card.appendChild(h('div', { class: 'info', role: 'status', text: 'No one on this number needs a call anymore.' }));
+    }
+
     var href = telHref(c.phone);
     if (!state.dialed) {
       if (state.reserveFail) {
@@ -310,56 +328,60 @@
           ? "Couldn't reserve this call. Calling is paused. You can skip this household."
           : state.reserveFail === 'badphone'
             ? 'This phone number looks invalid. Skip this household.'
-            : "Couldn't reserve this call. Tap Get next.";
+            : state.reserveFail === 'skipnet'
+              ? "Couldn't skip. Check your signal and try again."
+              : "Couldn't connect. Tap Try call again.";
         card.appendChild(h('div', { class: 'alert', role: 'alert', text: m }));
       }
       var stack = h('div', { class: 'stack' });
-      if (state.reserveFail !== 'closed' && state.reserveFail !== 'badphone' && state.voters.length) {
+      if (!state.voters.length) {
+        // Nobody left to call on this number: release it, then claim the next one.
+        stack.appendChild(h('button', {
+          class: 'btn btn-big', type: 'button', disabled: state.busy,
+          text: state.busy ? 'Working…' : 'Get next', onclick: doReleaseEmpty
+        }));
+      } else if (state.reserveFail !== 'closed' && state.reserveFail !== 'badphone') {
         stack.appendChild(h('button', {
           class: 'btn btn-call', type: 'button', disabled: state.busy,
-          text: state.busy ? 'Reserving…' : (state.reserveFail ? 'Try call again' : 'Call'),
+          text: state.busy ? 'Reserving…' : (state.reserveFail === 'net' ? 'Try call again' : 'Call'),
           onclick: doCall
         }));
       }
-      if (state.reserveFail === 'net') {
-        stack.appendChild(h('button', { class: 'btn', type: 'button', text: 'Get next', disabled: state.busy, onclick: loadNext }));
-      }
       card.appendChild(stack);
 
-      var skipWrap = h('div', { class: 'skip-wrap' });
-      if (!state.skipOpen) {
-        skipWrap.appendChild(h('button', {
-          class: 'btn btn-alt', type: 'button', text: 'Skip', disabled: state.busy,
-          onclick: function () { state.skipOpen = true; render(); }
-        }));
-      } else {
-        skipWrap.appendChild(h('div', { class: 'section-title', text: 'Why skip?' }));
-        var rs = h('div', { class: 'skip-reasons' });
-        SKIP_REASONS.forEach(function (r) {
-          rs.appendChild(h('button', { class: 'btn btn-alt', type: 'button', text: r[1], disabled: state.busy, onclick: function () { doSkip(r[0]); } }));
-        });
-        skipWrap.appendChild(rs);
-        skipWrap.appendChild(h('button', {
-          class: 'btn btn-alt', type: 'button', text: 'Cancel', disabled: state.busy,
-          onclick: function () { state.skipOpen = false; render(); }
-        }));
-        skipWrap.lastChild.classList.add('skip-cancel');
+      if (state.voters.length) {
+        var skipWrap = h('div', { class: 'skip-wrap' });
+        if (!state.skipOpen) {
+          skipWrap.appendChild(h('button', {
+            class: 'btn btn-alt', type: 'button', text: 'Skip', disabled: state.busy,
+            onclick: function () { state.skipOpen = true; render(); }
+          }));
+        } else {
+          skipWrap.appendChild(h('div', { class: 'section-title', text: 'Why skip?' }));
+          var rs = h('div', { class: 'skip-reasons' });
+          SKIP_REASONS.forEach(function (r) {
+            rs.appendChild(h('button', { class: 'btn btn-alt', type: 'button', text: r[1], disabled: state.busy, onclick: function () { doSkip(r[0]); } }));
+          });
+          skipWrap.appendChild(rs);
+          skipWrap.appendChild(h('button', {
+            class: 'btn btn-alt skip-cancel', type: 'button', text: 'Cancel', disabled: state.busy,
+            onclick: function () { state.skipOpen = false; render(); }
+          }));
+        }
+        card.appendChild(skipWrap);
       }
-      card.appendChild(skipWrap);
     } else {
       var st2 = h('div', { class: 'stack' });
-      if (href && state.dialLink) {
-        st2.appendChild(h('a', { class: 'btn btn-call', href: href, text: 'Tap to dial ' + fmtPhone(c.phone) }));
-        st2.appendChild(h('p', { class: 'muted', text: "If your phone didn't start the call, tap above." }));
-      }
+      st2.appendChild(h('p', { class: 'muted', text: 'When the call ends, come back here and tap what happened.' }));
       st2.appendChild(h('button', {
-        class: 'btn btn-alt', type: 'button', text: 'Record result ↓',
+        class: 'btn btn-call', type: 'button', text: 'Record result ↓',
         onclick: function () { var r = $('results'); if (r && r.scrollIntoView) r.scrollIntoView({ block: 'start' }); }
       }));
+      if (href && state.dialLink) {
+        st2.appendChild(h('a', { class: 'btn btn-dial', href: href }, ['Tap to dial', h('br'), fmtPhone(c.phone)]));
+        st2.appendChild(h('p', { class: 'muted', text: "If your phone didn't start the call, use the Tap to dial button." }));
+      }
       card.appendChild(st2);
-    }
-    if (!state.voters.length) {
-      card.appendChild(h('div', { class: 'info', role: 'status', text: 'No one on this number needs a call anymore.' }));
     }
     main.appendChild(card);
 
@@ -367,8 +389,8 @@
       main.appendChild(h('div', { class: 'info', role: 'status', text: 'This call timed out on the server, but you can still save what happened.' }));
     }
 
-    state.voters.forEach(function (v) { main.appendChild(voterCard(v)); });
     scriptBlocks().forEach(function (s) { main.appendChild(s); });
+    state.voters.forEach(function (v) { main.appendChild(voterCard(v)); });
     if (state.dialed) main.appendChild(resultsPanel());
   }
 
@@ -381,15 +403,10 @@
     if (n === 37 || n === 39) badges.appendChild(h('span', { class: 'badge', text: raceLabel('HD' + n) }));
     else if (n !== null) badges.appendChild(h('span', { class: 'badge', text: 'HD ' + n }));
     if (v.voted_primary26 === 'Y') badges.appendChild(h('span', { class: 'badge primary', text: 'Voted Aug primary' }));
+    if (v.vbm === 'Y') badges.appendChild(h('span', { class: 'badge warn', text: 'Mail ballot not returned' }));
     card.appendChild(badges);
     var tt = tierText(v.tier);
     if (tt) card.appendChild(h('div', { class: 'tier', text: tt }));
-    if (v.vbm === 'Y') {
-      card.appendChild(h('div', { class: 'vbm', role: 'note' }, [
-        h('strong', { text: 'Mail ballot not returned' }),
-        document.createTextNode(String(content().vbm_instructions || ''))
-      ]));
-    }
     card.appendChild(h('div', { class: 'poll' }, [
       h('div', { class: 'lbl', text: 'Polling place' }),
       h('div', { class: 'pname', text: v.polling_name || 'Not available' }),
@@ -446,9 +463,9 @@
   function resultsPanel() {
     var p = h('section', { class: 'card results', id: 'results' });
     p.appendChild(h('h3', { text: 'How did the call go?' }));
-    if (state.submitError) p.appendChild(h('div', { class: 'alert', role: 'alert', text: state.submitError }));
+    if (state.submitError) p.appendChild(h('div', { class: 'alert', role: 'alert', id: 'submit-alert', text: state.submitError }));
 
-    p.appendChild(h('div', { class: 'section-title', text: 'Nobody answered, or bad number' }));
+    p.appendChild(h('div', { class: 'section-title', text: 'No conversation / bad number' }));
     var grid = h('div', { class: 'hh-grid' });
     HH_BUTTONS.forEach(function (b) {
       grid.appendChild(h('button', {
@@ -501,6 +518,8 @@
     ta.value = state.note;
     ta.addEventListener('input', function () { state.note = ta.value; });
     p.appendChild(ta);
+    helperEl = h('p', { class: 'helper', 'aria-live': 'polite' });
+    p.appendChild(helperEl);
     saveBtnEl = h('button', {
       class: 'btn btn-call', type: 'button', text: state.busy ? 'Saving…' : 'Save & next',
       onclick: submitAnswered
@@ -514,6 +533,18 @@
   }
   function updateSave() {
     if (saveBtnEl) saveBtnEl.disabled = state.busy || !allChosen();
+    if (helperEl) {
+      var left = state.voters.filter(function (v) { return !state.choices[v.vanid]; }).length;
+      helperEl.textContent = left
+        ? "Pick one answer for each person (" + left + " left). If someone wasn't on the phone, choose 'Not available, call back'."
+        : 'All set. Tap Save & next.';
+    }
+  }
+  function showSubmitError(text, toastMs) {
+    state.submitError = text; render();
+    if (toastMs) toast(text, toastMs);
+    var a = $('submit-alert');
+    if (a && a.scrollIntoView) a.scrollIntoView({ block: 'center' });
   }
 
   /* ---------- actions ---------- */
@@ -522,7 +553,7 @@
     state.resultId = uuid(); state.dialed = !!d.claim.dialed; state.dialLink = state.dialed;
     state.reserveFail = ''; state.skipOpen = false; state.confirming = null;
     state.choices = {}; state.note = ''; state.submitError = ''; state.lostNote = false;
-    state.notice = ''; state.awaitingReturn = false;
+    state.notice = '';
     lsSet(K_HOLD, '1');
     state.view = 'household';
     startHeartbeat();
@@ -546,7 +577,7 @@
     if (d.status === 'closed') { finishClaim(); state.view = 'closed'; render(); return; }
     if (d.status === 'empty') { finishClaim(); state.nextAt = d.next_eligible_at || null; state.view = 'empty'; render(); return; }
     if (d.status === 'unauthorized') { showUnauth(); return; }
-    state.view = 'offline'; state.msg = d.message || 'Something went wrong. Try again.';
+    state.view = 'wait'; state.msg = d.message || 'Try again in a moment.';
     state.retry = loadNext; render();
   }
 
@@ -555,12 +586,12 @@
     if (state.busy || !claim) return;
     if (!telHref(claim.phone)) { state.reserveFail = 'badphone'; render(); return; }
     state.busy = true; state.reserveFail = ''; render();
-    var r = await rpc('vol_mark_dialed', { p_token: state.token, p_claim_token: claim.claim_token }, 2000);
+    var r = await rpc('vol_mark_dialed', { p_token: state.token, p_claim_token: claim.claim_token }, 4000);
     state.busy = false;
     if (state.claim !== claim) { render(); return; }
     var s = r.net ? null : r.data.status;
     if (s === 'ok') {
-      state.dialed = true; state.dialLink = true; state.awaitingReturn = true;
+      state.dialed = true; state.dialLink = true;
       try { window.location.href = telHref(claim.phone); } catch (e) { /* fallback link is shown */ }
       render();
       return;
@@ -590,11 +621,29 @@
     }
     if (s === 'dialed') {
       state.dialed = true; state.dialLink = true; state.skipOpen = false;
-      state.submitError = 'This call was already dialed, so please record the result.';
-      render(); return;
+      showSubmitError('This call was already dialed, so please record the result.');
+      return;
     }
     if (s === 'unauthorized') { showUnauth(); return; }
-    state.skipOpen = false; state.reserveFail = 'net'; render();
+    state.skipOpen = false; state.reserveFail = 'skipnet'; render();
+  }
+
+  async function doReleaseEmpty() {
+    var claim = state.claim;
+    if (state.busy || !claim) return;
+    state.busy = true; state.reserveFail = ''; render();
+    var r = await rpc('vol_release', { p_token: state.token, p_claim_token: claim.claim_token, p_reason: 'no_open_voters' }, 8000);
+    state.busy = false;
+    if (state.claim !== claim) { render(); return; }
+    var s = r.net ? null : r.data.status;
+    if (s === 'ok' || s === 'lost') { finishClaim(); await loadNext(); return; }
+    if (s === 'dialed') {
+      state.dialed = true; state.dialLink = true;
+      showSubmitError('This call was already dialed, so please record the result.');
+      return;
+    }
+    if (s === 'unauthorized') { showUnauth(); return; }
+    state.reserveFail = 'skipnet'; render();
   }
 
   function submitAnswered() {
@@ -624,7 +673,9 @@
       return;
     }
     if (o && o.status === 'error') {
-      state.submitError = o.message; render(); return;
+      var em = String(o.message || '').replace(/[.\s]+$/, '') || 'the server refused it';
+      showSubmitError('Not saved: ' + em + '. Tell your lead this number: ' + fmtPhone(claim.phone) + '.', 8000);
+      return;
     }
     // Network failure: result stays queued and retries in the background.
     finishClaim();
@@ -659,11 +710,6 @@
     if (document.visibilityState !== 'visible') return;
     if (queue.length) { backoff = 2000; flushQueue(); }
     if (state.claim) heartbeat();
-    if (state.claim && state.dialed && state.awaitingReturn && state.view === 'household') {
-      state.awaitingReturn = false;
-      var r = $('results');
-      if (r && r.scrollIntoView) r.scrollIntoView({ block: 'start' });
-    }
   });
   window.addEventListener('online', function () { if (queue.length) { backoff = 2000; flushQueue(); } });
 
@@ -694,9 +740,9 @@
 
   async function loadMe() {
     var r = await rpc('vol_me', { p_token: state.token }, 10000);
-    if (r.net) { state.view = 'offline'; state.msg = 'Could not reach the server. Check your signal.'; state.retry = boot; render(); return false; }
-    if (r.data.status === 'unauthorized') { showUnauth(); return false; }
-    if (r.data.status !== 'ok') { state.view = 'offline'; state.msg = r.data.message || 'Something went wrong. Try again.'; state.retry = boot; render(); return false; }
+    if (r.net) { state.busy = false; state.view = 'offline'; state.msg = 'Could not reach the server. Check your signal.'; state.retry = boot; render(); return false; }
+    if (r.data.status === 'unauthorized') { state.busy = false; showUnauth(); return false; }
+    if (r.data.status !== 'ok') { state.busy = false; state.view = 'wait'; state.msg = r.data.message || 'Try again in a moment.'; state.retry = boot; render(); return false; }
     me = r.data;
     return true;
   }

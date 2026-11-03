@@ -80,9 +80,13 @@ h1, h2, h3, p { margin: 0; }
   border: 2px solid var(--brand); border-radius: 10px; cursor: pointer;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+.btn:disabled, .btn[aria-disabled="true"],
+.btn-alt:disabled, .hh-grid .btn:disabled, .hh-grid .btn.final:disabled {
+  background: #c9ced6; color: #2a313a; border-color: #7b8490; opacity: 1; cursor: not-allowed;
+}
 .btn:focus-visible, .seg:focus-visible, textarea:focus-visible { outline: 4px solid #ff9f1a; outline-offset: 2px; }
 .btn-big { min-height: 72px; font-size: 1.5rem; }
+.btn-dial { min-height: 56px; font-size: 1.05rem; line-height: 1.25; }
 .btn-call { background: var(--call); border-color: var(--call); font-size: 1.6rem; min-height: 72px; }
 .btn-alt { background: #fff; color: var(--brand); }
 .btn-danger { background: #8a0000; border-color: #8a0000; }
@@ -91,7 +95,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* Phone card */
 .phone-card { text-align: center; }
-.phone-num { font-size: 2.1rem; font-weight: 800; letter-spacing: 0.5px; line-height: 1.15; word-break: keep-all; }
+.phone-num { font-size: clamp(1.6rem, 9vw, 2.1rem); font-weight: 800; letter-spacing: 0.5px; line-height: 1.15; white-space: nowrap; }
 .phone-type { font-size: 1.05rem; color: var(--muted); font-weight: 600; margin: 4px 0 12px; }
 
 /* Skip */
@@ -106,6 +110,7 @@ h1, h2, h3, p { margin: 0; }
   background: #e3ecff; color: var(--brand); border: 2px solid var(--brand);
 }
 .badge.primary { background: #e0f4e6; color: #0a4a20; border-color: #0a4a20; }
+.badge.warn { background: var(--warn-bg); color: var(--warn-ink); border-color: var(--warn-line); }
 .tier { font-weight: 600; margin-bottom: 6px; }
 .vbm {
   background: var(--warn-bg); color: var(--warn-ink); border: 2px solid var(--warn-line);
@@ -122,14 +127,14 @@ h1, h2, h3, p { margin: 0; }
 
 /* Results */
 .results { border-color: var(--call); border-width: 3px; }
-.hh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
-.hh-grid .btn { background: #fff; color: var(--ink); border-color: var(--ink); min-height: 56px; }
+.hh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.hh-grid .btn { background: #fff; color: var(--ink); border-color: var(--ink); min-height: 56px; padding: 10px 4px; font-size: 0.95rem; overflow-wrap: anywhere; }
 .hh-grid .btn.final { border-color: var(--err-line); color: var(--err-ink); }
 .confirm { margin-top: 10px; }
 .divider { border: 0; border-top: 2px solid var(--line); margin: 16px 0; }
 .who { margin-bottom: 14px; }
 .who-name { font-weight: 700; margin-bottom: 6px; overflow-wrap: anywhere; }
-.seg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.seg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .seg {
   min-height: 52px; padding: 8px 8px; font: inherit; font-weight: 600; font-size: 0.95rem; line-height: 1.2;
   color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 10px; cursor: pointer;
@@ -137,8 +142,12 @@ h1, h2, h3, p { margin: 0; }
 }
 .seg[aria-pressed="true"] { background: var(--sel); color: #fff; border-color: var(--sel); }
 .seg[aria-pressed="true"]::before { content: "\2713\00a0"; }
-.seg:disabled { opacity: 0.5; }
+.seg:disabled { background: #c9ced6; color: #2a313a; border-color: #7b8490; cursor: not-allowed; }
+.seg[aria-pressed="true"]:disabled { background: #4a5f8c; color: #fff; border-color: #4a5f8c; }
 label.lbl-note { display: block; font-weight: 700; margin: 6px 0 4px; }
+.helper { margin: 12px 0 10px; font-weight: 600; color: var(--muted); }
+.howto { text-align: left; margin: 0 auto 16px; max-width: 22em; font-size: 1.1rem; }
+.howto p { margin: 0 0 6px; }
 textarea {
   display: block; width: 100%; min-height: 84px; padding: 10px; font: inherit;
   border: 2px solid var(--ink); border-radius: 8px; color: var(--ink); background: #fff; resize: vertical;
@@ -147,7 +156,7 @@ textarea {
 /* Toast */
 .toast {
   position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
-  max-width: calc(100% - 24px); padding: 12px 20px; border-radius: 999px;
+  max-width: calc(100% - 24px); padding: 12px 20px; border-radius: 16px; text-align: center; overflow-wrap: anywhere;
   background: #0a3d1a; color: #fff; font-weight: 700; border: 2px solid #fff; z-index: 10;
 }
 
