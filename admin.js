@@ -581,6 +581,7 @@ function buildConfigUI() {
   parts.push(simpleField('left_message_is_final', 'Left voicemail is final', 'If checked, a voicemail closes the voter (no retry).', 'bool'));
   parts.push(simpleField('export_date_format', 'Export date format', 'Postgres to_char pattern, e.g. MM/DD/YYYY.', 'text'));
   parts.push(simpleField('van_contact_type_id', 'VAN contact type ID', 'Whole number. Phone = 1.', 'int'));
+  parts.push(simpleField('first_pass_across_lists', 'First pass across both lists', 'On: when a caller\'s own list has no first calls left, they get first calls from the other list before any retries. Off: callers stay on their own list (retries after their list\'s first pass).', 'bool'));
   parts.push(simpleField('support_label', 'Support rating label', 'Shown to callers above the support buttons (only for people they talked to).', 'text'));
   parts.push(simpleField('support_survey_question_id', 'VAN survey question ID for support', 'Blank until the VAN survey question is chosen. Exported as SurveyQuestionID on rows with a support rating.', 'intnull'));
   parts.push(simpleField('support_map', 'Support options (JSON)', 'The 5 support levels: label shown to callers and van_response_id (VAN survey response ID, or null).', 'json'));
@@ -607,6 +608,7 @@ function fillConfigUI() {
   setVal('claim_lease_minutes'); setVal('dialed_lease_minutes'); setVal('left_message_is_final', 'bool');
   setVal('export_date_format'); setVal('van_contact_type_id'); setVal('result_map', 'json');
   setVal('support_label'); setVal('support_survey_question_id'); setVal('support_map', 'json');
+  setVal('first_pass_across_lists', 'bool');
   const rl = cfg.race_labels || {};
   for (const k of ['SD10', 'HD37', 'HD39']) labelInputs[k].value = typeof rl[k] === 'string' ? rl[k] : '';
   const sc = cfg.scripts || {};
