@@ -163,6 +163,7 @@ const OUTCOME_LABELS = {
   talked_already_voted: 'Talked: already voted', talked_refused: 'Talked: refused', call_back: 'Not available, call back',
   moved: 'Moved', deceased: 'Deceased', language_spanish: 'Language: Spanish', language_other: 'Language: Other',
   answered: 'Answered',
+  moved_household: 'Moved (no one here)',
 };
 const OUTCOME_ORDER = Object.keys(OUTCOME_LABELS);
 

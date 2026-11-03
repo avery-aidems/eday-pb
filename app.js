@@ -8,9 +8,10 @@
 
   var HH_BUTTONS = [
     ['no_answer', 'No answer'], ['busy', 'Busy'], ['left_voicemail', 'Left voicemail'],
-    ['wrong_number', 'Wrong number'], ['disconnected', 'Disconnected'], ['do_not_call', 'Do not call']
+    ['wrong_number', 'Wrong number'], ['disconnected', 'Disconnected'], ['do_not_call', 'Do not call'],
+    ['moved_household', 'Moved (no one here)']
   ];
-  var FINAL_HH = { wrong_number: 1, disconnected: 1, do_not_call: 1 };
+  var FINAL_HH = { wrong_number: 1, disconnected: 1, do_not_call: 1, moved_household: 1 };
   var VOTER_OUTCOMES = [
     ['talked_will_vote', 'Talked: will vote'], ['talked_already_voted', 'Talked: already voted'],
     ['talked_refused', 'Talked: refused'], ['call_back', 'Not available, call back'],
