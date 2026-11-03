@@ -398,7 +398,9 @@
     var card = h('article', { class: 'card voter' });
     card.appendChild(h('h3', { class: 'vname', text: fullName(v) }));
     var badges = h('div', { class: 'badges' });
-    badges.appendChild(h('span', { class: 'badge', text: raceLabel('SD10') }));
+    var sdn = hdNum(v.sd);
+    if (sdn === 10) badges.appendChild(h('span', { class: 'badge', text: raceLabel('SD10') }));
+    else if (sdn !== null) badges.appendChild(h('span', { class: 'badge', text: 'SD ' + sdn }));
     var n = hdNum(v.hd);
     if (n === 37 || n === 39) badges.appendChild(h('span', { class: 'badge', text: raceLabel('HD' + n) }));
     else if (n !== null) badges.appendChild(h('span', { class: 'badge', text: 'HD ' + n }));
@@ -430,14 +432,17 @@
     var groups = [], idx = {};
     state.voters.forEach(function (v) {
       var kind = v.vbm === 'Y' ? 'vbm' : 'main';
-      var hd = hdNum(v.hd);
-      var key = kind + '|' + hd + '|' + (v.polling_name || '') + '|' + (v.polling_address || '');
-      if (!(key in idx)) { idx[key] = groups.length; groups.push({ kind: kind, hd: hd, voters: [] }); }
+      var hd = hdNum(v.hd), sd = hdNum(v.sd);
+      var key = kind + '|' + hd + '|' + sd + '|' + (v.polling_name || '') + '|' + (v.polling_address || '');
+      if (!(key in idx)) { idx[key] = groups.length; groups.push({ kind: kind, hd: hd, sd: sd, voters: [] }); }
       groups[idx[key]].voters.push(v);
     });
     var out = [];
     groups.forEach(function (g) {
-      var tpl = g.hd !== null ? scripts[g.kind + '_HD' + g.hd] : '';
+      // Most specific first: <kind>_HD<n>_SD<m>. The plain <kind>_HD<n> scripts name the SD 10 candidate,
+      // so they are used only for SD 10 voters; anyone else falls back to the pool default.
+      var tpl = (g.hd !== null && g.sd !== null) ? scripts[g.kind + '_HD' + g.hd + '_SD' + g.sd] : '';
+      if ((typeof tpl !== 'string' || !tpl.trim()) && g.hd !== null && g.sd === 10) tpl = scripts[g.kind + '_HD' + g.hd];
       if (typeof tpl !== 'string' || !tpl.trim()) tpl = scripts[g.kind + '_default'];
       if (typeof tpl !== 'string' || !tpl.trim()) return;
       var first = g.voters[0];

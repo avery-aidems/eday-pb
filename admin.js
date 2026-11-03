@@ -467,7 +467,8 @@ function renderVolunteers(vols) {
 }
 
 // ---------- 5. Config ----------
-const SCRIPT_KEYS = ['main_default', 'vbm_default', 'main_HD37', 'main_HD39', 'vbm_HD37', 'vbm_HD39'];
+const SCRIPT_KEYS = ['main_default', 'vbm_default', 'main_HD37', 'main_HD39', 'vbm_HD37', 'vbm_HD39',
+  'main_HD39_SD15', 'main_HD37_SD17', 'main_HD35_SD17', 'vbm_HD39_SD15', 'vbm_HD37_SD17', 'vbm_HD35_SD17'];
 const SAMPLE = { voter_first: 'Ana', volunteer_first: 'Sam', polling_place: 'Oviedo City Hall', polling_address: '400 Alexandria Blvd, Oviedo' };
 const inputs = {};       // key -> input element (for simple fields)
 const labelInputs = {};  // SD10/HD37/HD39
