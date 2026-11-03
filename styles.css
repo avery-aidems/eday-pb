@@ -168,3 +168,5 @@ textarea {
 .support-lbl { font-weight: 700; margin: 4px 0 6px; }
 .support-grid { margin-bottom: 12px; }
 .seg-support[aria-pressed="true"] { background: #0b5d1e; border-color: #0b5d1e; color: #fff; }
+
+.precinct-county { margin-top: 4px; font-size: .95rem; color: #3a4350; }

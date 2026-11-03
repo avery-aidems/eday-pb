@@ -409,7 +409,11 @@
     card.appendChild(h('div', { class: 'poll' }, [
       h('div', { class: 'lbl', text: 'Polling place' }),
       h('div', { class: 'pname', text: v.polling_name || 'Not available' }),
-      h('div', { text: v.polling_address || '' })
+      h('div', { text: v.polling_address || '' }),
+      (v.precinct || v.county) ? h('div', { class: 'precinct-county', text: [
+        v.precinct ? 'Precinct ' + v.precinct : '',
+        v.county ? (/county$/i.test(String(v.county)) ? String(v.county) : v.county + ' County') : ''
+      ].filter(Boolean).join(' \u00b7 ') }) : null
     ]));
     return card;
   }
