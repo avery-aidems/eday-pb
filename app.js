@@ -223,11 +223,10 @@
       h('span', { class: 'hdr-meta', text: poolLabel(state.claim ? state.claim.pool : me.pool) + ' · Calls today: ' + (me.calls_today || 0) })
     ]));
     var pfb = String(content().paid_for_by || '').trim();
-    var say;
-    if (!pfb) say = 'Say: Paid for by (not set, ask your lead)';
-    else if (/^paid for by/i.test(pfb)) say = 'Say: ' + pfb;
-    else say = 'Say: Paid for by ' + pfb;
-    hd.appendChild(h('div', { class: 'say', text: say }));
+    if (pfb) {   // optional: the banner shows only when a "Paid for by" line is configured
+      var say = /^paid for by/i.test(pfb) ? 'Say: ' + pfb : 'Say: Paid for by ' + pfb;
+      hd.appendChild(h('div', { class: 'say', text: say }));
+    }
   }
 
   function renderBadge() {

@@ -316,7 +316,6 @@ function setupCallingToggle() {
       const warns = [];
       if (lastStats.data_kind === 'synthetic') warns.push('The loaded data is SYNTHETIC test data, not the real call lists.');
       if (lastStats.data_kind === 'empty') warns.push('No data is loaded. Volunteers will get nothing to call.');
-      if (!(cfg.paid_for_by || '').trim()) warns.push('"Paid for by" is empty. Calling should not open until this is set.');
       if (!(cfg.scripts && (cfg.scripts.main_default || '').trim())) warns.push('The main default script looks empty or settings are not loaded.');
       if (!warns.length) warns.push('Check that scripts, retry policy and the paid-for-by line are final.');
       $('open-warnings').replaceChildren(...warns.map((w) => h('li', { text: w })));
@@ -465,7 +464,7 @@ const labelInputs = {};  // SD10/HD37/HD39
 const scriptInputs = {}; // script key -> textarea
 
 function updatePaidWarn() {
-  $('paid-warn').hidden = !!(cfg.paid_for_by || '').trim();
+  $('paid-warn').hidden = true;   // "Paid for by" is optional (campaign decision, Nov 3)
 }
 
 function field(label, help) {
@@ -524,7 +523,7 @@ function buildConfigUI() {
   const root = $('cfg-fields');
   const parts = [];
 
-  const paid = simpleField('paid_for_by', 'Paid for by', 'Shown to callers and substituted for {paid_for_by} in scripts.', 'text');
+  const paid = simpleField('paid_for_by', 'Paid for by', 'Optional. If set, shown to callers as a reminder and substituted for {paid_for_by} in scripts. Leave blank if not used.', 'text');
   parts.push(paid);
 
   // race labels
@@ -620,8 +619,7 @@ function updatePreview() {
   }
   if (!text.trim()) notes.push('This script is empty.');
   const paid = inputs.paid_for_by ? inputs.paid_for_by.value.trim() : '';
-  if (!paid) notes.push('paid_for_by is empty (shown as [empty] below).');
-  const values = Object.assign({}, SAMPLE, { paid_for_by: paid || '[empty]' });
+  const values = Object.assign({}, SAMPLE, { paid_for_by: paid });
   let out = text;
   for (const [k, v] of Object.entries(values)) out = out.split('{' + k + '}').join(v);
   const unknown = Array.from(new Set((text.match(/\{[^{}\s]*\}/g) || []).filter((m) => !(m.slice(1, -1) in values))));
