@@ -31,7 +31,7 @@
   var state = {
     token: null, view: 'loading', busy: false, notice: '', msg: '', retry: null,
     claim: null, voters: [], resultId: null, dialed: false, dialLink: false,
-    reserveFail: '', skipOpen: false, confirming: null, choices: {}, note: '',
+    reserveFail: '', skipOpen: false, confirming: null, choices: {}, support: {}, note: '',
     submitError: '', lostNote: false, nextAt: null
   };
   var me = null;           // vol_me result
@@ -208,7 +208,7 @@
   function finishClaim() {
     state.claim = null; state.voters = []; state.dialed = false; state.dialLink = false;
     state.reserveFail = ''; state.skipOpen = false; state.confirming = null;
-    state.choices = {}; state.note = ''; state.submitError = ''; state.lostNote = false;
+    state.choices = {}; state.support = {}; state.note = ''; state.submitError = ''; state.lostNote = false;
     saveBtnEl = null; helperEl = null;
     if (state.view === 'household') state.view = 'home';
     lsDel(K_HOLD);
@@ -495,6 +495,38 @@
     state.voters.forEach(function (v) {
       var who = h('div', { class: 'who' });
       who.appendChild(h('div', { class: 'who-name', text: fullName(v) }));
+      // Optional support rating, above the result choices; active only once a "Talked: ..." result is chosen.
+      var sopts = Array.isArray(content().support_options) ? content().support_options : [];
+      var slabel = String(content().support_label || 'Support');
+      var sp = null;
+      function isTalked() { return /^talked_/.test(state.choices[v.vanid] || ''); }
+      function syncSupport() {
+        if (!sp) return;
+        if (!isTalked()) delete state.support[v.vanid];
+        Array.prototype.forEach.call(sp.children, function (x) {
+          x.disabled = state.busy || !isTalked();
+          x.setAttribute('aria-pressed', state.support[v.vanid] === x.getAttribute('data-code') ? 'true' : 'false');
+        });
+        if (sHint) sHint.textContent = isTalked() ? slabel + ' (optional, tap again to clear)' : slabel + ': choose a "Talked" result first';
+      }
+      var sHint = null;
+      if (sopts.length) {
+        sHint = h('div', { class: 'support-lbl' });
+        sp = h('div', { class: 'seg-grid support-grid', role: 'group', 'aria-label': slabel + ' for ' + fullName(v) });
+        sopts.forEach(function (o) {
+          if (!o || typeof o.code !== 'string') return;
+          var b = h('button', { class: 'seg seg-support', type: 'button', text: String(o.label || o.code), 'data-code': o.code });
+          b.addEventListener('click', function () {
+            if (state.busy || !isTalked()) return;
+            state.support[v.vanid] = state.support[v.vanid] === o.code ? undefined : o.code;
+            if (!state.support[v.vanid]) delete state.support[v.vanid];
+            syncSupport();
+          });
+          sp.appendChild(b);
+        });
+        who.appendChild(sHint);
+        who.appendChild(sp);
+      }
       var sg = h('div', { class: 'seg-grid', role: 'group', 'aria-label': 'Result for ' + fullName(v) });
       VOTER_OUTCOMES.forEach(function (o) {
         var btn = h('button', {
@@ -505,11 +537,13 @@
           if (state.busy) return;
           state.choices[v.vanid] = o[0];
           Array.prototype.forEach.call(sg.children, function (x) { x.setAttribute('aria-pressed', x === btn ? 'true' : 'false'); });
+          syncSupport();
           updateSave();
         });
         sg.appendChild(btn);
       });
       who.appendChild(sg);
+      syncSupport();
       p.appendChild(who);
     });
     p.appendChild(h('label', { class: 'lbl-note', for: 'note', text: 'Note (optional)' }));
@@ -551,7 +585,7 @@
     state.claim = d.claim; state.voters = d.voters || [];
     state.resultId = uuid(); state.dialed = !!d.claim.dialed; state.dialLink = state.dialed;
     state.reserveFail = ''; state.skipOpen = false; state.confirming = null;
-    state.choices = {}; state.note = ''; state.submitError = ''; state.lostNote = false;
+    state.choices = {}; state.support = {}; state.note = ''; state.submitError = ''; state.lostNote = false;
     state.notice = '';
     lsSet(K_HOLD, '1');
     state.view = 'household';
@@ -647,7 +681,11 @@
 
   function submitAnswered() {
     if (!allChosen() || state.busy) return;
-    var vo = state.voters.map(function (v) { return { vanid: v.vanid, outcome: state.choices[v.vanid] }; });
+    var vo = state.voters.map(function (v) {
+      var o = { vanid: v.vanid, outcome: state.choices[v.vanid] };
+      if (/^talked_/.test(o.outcome) && state.support[v.vanid]) o.support = state.support[v.vanid];
+      return o;
+    });
     var note = String(state.note || '').trim();
     submit('answered', vo, note || null);
   }

@@ -238,7 +238,11 @@ function renderStats(s) {
     const ia = OUTCOME_ORDER.indexOf(a), ib = OUTCOME_ORDER.indexOf(b);
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
   });
-  if (ocKeys.length) buildTable($('tbl-outcomes'), ['Outcome', 'Count'], ocKeys.map((k) => [OUTCOME_LABELS[k] || k, String(oc[k])]), [1]);
+  const SUPPORT_ORDER = ['strong_support', 'lean_support', 'undecided', 'lean_against', 'strong_against'];
+  const SUPPORT_LABELS = { strong_support: 'Strong support', lean_support: 'Lean support', undecided: 'Undecided', lean_against: 'Lean against', strong_against: 'Strong against' };
+  const sup = s.support || {};
+  const supRows = SUPPORT_ORDER.filter((k) => sup[k]).map((k) => ['Support: ' + SUPPORT_LABELS[k], String(sup[k])]);
+  if (ocKeys.length) buildTable($('tbl-outcomes'), ['Outcome', 'Count'], ocKeys.map((k) => [OUTCOME_LABELS[k] || k, String(oc[k])]).concat(supRows), [1]);
   else emptyRow($('tbl-outcomes'), 'No results yet.');
 
   // calls per 15 minutes (newest first)
@@ -504,6 +508,10 @@ function simpleField(key, label, help, kind) {
         if (kind === 'int' && !Number.isInteger(value)) throw new Error('Must be a whole number.');
         if (key === 'max_attempts' && value < 1) throw new Error('Must be at least 1.');
         if (key !== 'max_attempts' && value <= 0 && key !== 'van_contact_type_id') throw new Error('Must be greater than 0.');
+      } else if (kind === 'intnull') {
+        const t = input.value.trim();
+        value = t === '' ? null : Number(t);
+        if (value !== null && (!Number.isInteger(value) || value <= 0)) throw new Error('Must be a positive whole number, or blank.');
       } else if (kind === 'json') {
         value = JSON.parse(input.value);
         if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error('Must be a JSON object.');
@@ -572,6 +580,9 @@ function buildConfigUI() {
   parts.push(simpleField('left_message_is_final', 'Left voicemail is final', 'If checked, a voicemail closes the voter (no retry).', 'bool'));
   parts.push(simpleField('export_date_format', 'Export date format', 'Postgres to_char pattern, e.g. MM/DD/YYYY.', 'text'));
   parts.push(simpleField('van_contact_type_id', 'VAN contact type ID', 'Whole number. Phone = 1.', 'int'));
+  parts.push(simpleField('support_label', 'Support rating label', 'Shown to callers above the support buttons (only for people they talked to).', 'text'));
+  parts.push(simpleField('support_survey_question_id', 'VAN survey question ID for support', 'Blank until the VAN survey question is chosen. Exported as SurveyQuestionID on rows with a support rating.', 'intnull'));
+  parts.push(simpleField('support_map', 'Support options (JSON)', 'The 5 support levels: label shown to callers and van_response_id (VAN survey response ID, or null).', 'json'));
   parts.push(simpleField('result_map', 'Result map (JSON)', 'Outcome code to VAN result code mapping. Validated as JSON before saving.', 'json'));
 
   root.replaceChildren(...parts);
@@ -594,6 +605,7 @@ function fillConfigUI() {
   setVal('paid_for_by'); setVal('vbm_instructions'); setVal('max_attempts'); setVal('retry_delay_minutes');
   setVal('claim_lease_minutes'); setVal('dialed_lease_minutes'); setVal('left_message_is_final', 'bool');
   setVal('export_date_format'); setVal('van_contact_type_id'); setVal('result_map', 'json');
+  setVal('support_label'); setVal('support_survey_question_id'); setVal('support_map', 'json');
   const rl = cfg.race_labels || {};
   for (const k of ['SD10', 'HD37', 'HD39']) labelInputs[k].value = typeof rl[k] === 'string' ? rl[k] : '';
   const sc = cfg.scripts || {};
@@ -756,7 +768,7 @@ function showSupResult(res, note) {
 }
 
 // ---------- 7. Export ----------
-const EXPORT_COLS = ['VANID', 'ResultCodeID', 'ResultCode', 'ContactTypeID', 'DateCanvassed', 'PhoneNumber', 'Outcome', 'Volunteer'];
+const EXPORT_COLS = ['VANID', 'ResultCodeID', 'ResultCode', 'ContactTypeID', 'DateCanvassed', 'PhoneNumber', 'Outcome', 'Volunteer', 'Support', 'SurveyQuestionID', 'SurveyResponseID'];
 
 function csvField(v) {
   let s = v === null || v === undefined ? '' : String(v);
